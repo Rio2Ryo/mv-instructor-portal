@@ -17,6 +17,7 @@ export default function LoginPage() {
 
     setTimeout(() => {
       if (email === "demo@example.com" && password === "demo123") {
+        localStorage.setItem("mv-auth", JSON.stringify({ email, loggedIn: true }));
         router.push("/dashboard");
       } else {
         setError("メールアドレスまたはパスワードが正しくありません");

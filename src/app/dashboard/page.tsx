@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 // --- Mock Data ---
@@ -109,6 +109,40 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [copied, setCopied] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+
+  // Withdrawal form state
+  const [withdrawalAmount, setWithdrawalAmount] = useState("");
+  const [withdrawalBank, setWithdrawalBank] = useState("");
+  const [withdrawalBranch, setWithdrawalBranch] = useState("");
+  const [withdrawalAccount, setWithdrawalAccount] = useState("");
+  const [withdrawalName, setWithdrawalName] = useState("");
+  const [withdrawalSubmitted, setWithdrawalSubmitted] = useState(false);
+
+  // Settings form state
+  const [settingsName, setSettingsName] = useState("デモ インストラクター");
+  const [settingsEmail, setSettingsEmail] = useState("demo@example.com");
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  // Auth guard
+  useEffect(() => {
+    const auth = localStorage.getItem("mv-auth");
+    if (!auth) {
+      router.replace("/");
+      return;
+    }
+    try {
+      const parsed = JSON.parse(auth);
+      if (!parsed.loggedIn) {
+        router.replace("/");
+        return;
+      }
+    } catch {
+      router.replace("/");
+      return;
+    }
+    setAuthChecked(true);
+  }, [router]);
 
   const handleCopyUrl = () => {
     navigator.clipboard.writeText(REFERRAL_URL);
@@ -117,8 +151,37 @@ export default function DashboardPage() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("mv-auth");
     router.push("/");
   };
+
+  const handleWithdrawalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setWithdrawalSubmitted(true);
+    setTimeout(() => setWithdrawalSubmitted(false), 3000);
+    setWithdrawalAmount("");
+    setWithdrawalBank("");
+    setWithdrawalBranch("");
+    setWithdrawalAccount("");
+    setWithdrawalName("");
+  };
+
+  const handleSettingsSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSettingsSaved(true);
+    setTimeout(() => setSettingsSaved(false), 2000);
+  };
+
+  if (!authChecked) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-50">
+        <div className="text-gray-400">読み込み中...</div>
+      </div>
+    );
+  }
+
+  // Get the label for the current tab
+  const currentTabLabel = SIDEBAR_ITEMS.find((item) => item.key === activeTab)?.label || "ダッシュボード";
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -202,60 +265,211 @@ export default function DashboardPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
-            <h1 className="text-lg font-semibold text-gray-900">ダッシュボード</h1>
+            <h1 className="text-lg font-semibold text-gray-900">{currentTabLabel}</h1>
           </div>
           <p className="text-sm text-gray-500">2026年4月13日</p>
         </header>
 
         {/* Scrollable Content */}
         <main className="flex-1 overflow-y-auto p-6">
-          {/* Stats Cards */}
-          <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {STATS.map((stat) => (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-              >
-                <div className="mb-3 flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-500">{stat.label}</span>
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-mv-green/10 text-mv-green">
-                    <Icon name={stat.icon} />
+          {/* Dashboard Tab */}
+          {activeTab === "dashboard" && (
+            <>
+              {/* Stats Cards */}
+              <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {STATS.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
+                  >
+                    <div className="mb-3 flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-500">{stat.label}</span>
+                      <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-mv-green/10 text-mv-green">
+                        <Icon name={stat.icon} />
+                      </div>
+                    </div>
+                    <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                    <p className="mt-1 text-xs text-gray-400">{stat.sub}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Referral URL */}
+              <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <h2 className="mb-3 text-sm font-semibold text-gray-900">紹介URL</h2>
+                <div className="flex items-center gap-3">
+                  <input
+                    readOnly
+                    value={REFERRAL_URL}
+                    className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700"
+                  />
+                  <button
+                    onClick={handleCopyUrl}
+                    className="flex items-center gap-2 rounded-lg bg-mv-green px-4 py-2.5 text-sm font-medium text-white transition hover:bg-mv-green-dark"
+                  >
+                    <Icon name="copy" className="h-4 w-4" />
+                    {copied ? "コピー済み!" : "コピー"}
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-gray-400">
+                  このリンクを共有して新しいインストラクターを紹介しましょう。紹介した方の売上から5%のコミッションが発生します。
+                </p>
+              </div>
+
+              {/* Two Column Section */}
+              <div className="grid gap-6 xl:grid-cols-2">
+                {/* Recent Commissions */}
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <div className="border-b border-gray-100 px-5 py-4">
+                    <h2 className="text-sm font-semibold text-gray-900">最近のコミッション</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
+                          <th className="px-5 py-3">日付</th>
+                          <th className="px-5 py-3">顧客</th>
+                          <th className="px-5 py-3">商品</th>
+                          <th className="px-5 py-3">コミッション</th>
+                          <th className="px-5 py-3">種類</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {RECENT_COMMISSIONS.map((c) => (
+                          <tr key={c.id} className="border-b border-gray-50 last:border-0">
+                            <td className="whitespace-nowrap px-5 py-3 text-gray-500">{c.date}</td>
+                            <td className="px-5 py-3 font-medium text-gray-900">{c.customer}</td>
+                            <td className="px-5 py-3 text-gray-500">{c.product}</td>
+                            <td className="px-5 py-3 font-medium text-mv-green">{c.commission}</td>
+                            <td className="px-5 py-3">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  c.type === "直接"
+                                    ? "bg-mv-green/10 text-mv-green"
+                                    : "bg-blue-50 text-blue-600"
+                                }`}
+                              >
+                                {c.type}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
-                <p className="mt-1 text-xs text-gray-400">{stat.sub}</p>
+
+                {/* Referred Instructors */}
+                <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                  <div className="border-b border-gray-100 px-5 py-4">
+                    <h2 className="text-sm font-semibold text-gray-900">紹介したインストラクター</h2>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
+                          <th className="px-5 py-3">名前</th>
+                          <th className="px-5 py-3">登録日</th>
+                          <th className="px-5 py-3">売上</th>
+                          <th className="px-5 py-3">ステータス</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {REFERRED_INSTRUCTORS.map((inst) => (
+                          <tr key={inst.id} className="border-b border-gray-50 last:border-0">
+                            <td className="px-5 py-3 font-medium text-gray-900">{inst.name}</td>
+                            <td className="whitespace-nowrap px-5 py-3 text-gray-500">{inst.joined}</td>
+                            <td className="px-5 py-3 font-medium text-gray-900">{inst.sales}</td>
+                            <td className="px-5 py-3">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                  inst.status === "アクティブ"
+                                    ? "bg-mv-green/10 text-mv-green"
+                                    : "bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {inst.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+            </>
+          )}
 
-          {/* Referral URL */}
-          <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-3 text-sm font-semibold text-gray-900">紹介URL</h2>
-            <div className="flex items-center gap-3">
-              <input
-                readOnly
-                value={REFERRAL_URL}
-                className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700"
-              />
-              <button
-                onClick={handleCopyUrl}
-                className="flex items-center gap-2 rounded-lg bg-mv-green px-4 py-2.5 text-sm font-medium text-white transition hover:bg-mv-green-dark"
-              >
-                <Icon name="copy" className="h-4 w-4" />
-                {copied ? "コピー済み!" : "コピー"}
-              </button>
+          {/* Referral Tab */}
+          {activeTab === "referral" && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">紹介リンク</h2>
+                <div className="flex items-center gap-3">
+                  <input
+                    readOnly
+                    value={REFERRAL_URL}
+                    className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm text-gray-700"
+                  />
+                  <button
+                    onClick={handleCopyUrl}
+                    className="flex items-center gap-2 rounded-lg bg-mv-green px-4 py-2.5 text-sm font-medium text-white transition hover:bg-mv-green-dark"
+                  >
+                    <Icon name="copy" className="h-4 w-4" />
+                    {copied ? "コピー済み!" : "URLをコピー"}
+                  </button>
+                </div>
+                <p className="mt-3 text-sm text-gray-500">
+                  このリンクを共有して新しいインストラクターを紹介しましょう。紹介した方の売上から5%のコミッションが発生します。
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">紹介したインストラクター</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-5 py-3">名前</th>
+                        <th className="px-5 py-3">登録日</th>
+                        <th className="px-5 py-3">売上</th>
+                        <th className="px-5 py-3">ステータス</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {REFERRED_INSTRUCTORS.map((inst) => (
+                        <tr key={inst.id} className="border-b border-gray-50 last:border-0">
+                          <td className="px-5 py-3 font-medium text-gray-900">{inst.name}</td>
+                          <td className="whitespace-nowrap px-5 py-3 text-gray-500">{inst.joined}</td>
+                          <td className="px-5 py-3 font-medium text-gray-900">{inst.sales}</td>
+                          <td className="px-5 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                inst.status === "アクティブ"
+                                  ? "bg-mv-green/10 text-mv-green"
+                                  : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
+                              {inst.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
-            <p className="mt-2 text-xs text-gray-400">
-              このリンクを共有して新しいインストラクターを紹介しましょう。紹介した方の売上から5%のコミッションが発生します。
-            </p>
-          </div>
+          )}
 
-          {/* Two Column Section */}
-          <div className="grid gap-6 xl:grid-cols-2">
-            {/* Recent Commissions */}
+          {/* Sales Tab */}
+          {activeTab === "sales" && (
             <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
               <div className="border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">最近のコミッション</h2>
+                <h2 className="text-sm font-semibold text-gray-900">販売履歴</h2>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -264,7 +478,7 @@ export default function DashboardPage() {
                       <th className="px-5 py-3">日付</th>
                       <th className="px-5 py-3">顧客</th>
                       <th className="px-5 py-3">商品</th>
-                      <th className="px-5 py-3">コミッション</th>
+                      <th className="px-5 py-3">金額</th>
                       <th className="px-5 py-3">種類</th>
                     </tr>
                   </thead>
@@ -274,7 +488,7 @@ export default function DashboardPage() {
                         <td className="whitespace-nowrap px-5 py-3 text-gray-500">{c.date}</td>
                         <td className="px-5 py-3 font-medium text-gray-900">{c.customer}</td>
                         <td className="px-5 py-3 text-gray-500">{c.product}</td>
-                        <td className="px-5 py-3 font-medium text-mv-green">{c.commission}</td>
+                        <td className="px-5 py-3 font-medium text-gray-900">{c.amount}</td>
                         <td className="px-5 py-3">
                           <span
                             className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -292,46 +506,223 @@ export default function DashboardPage() {
                 </table>
               </div>
             </div>
+          )}
 
-            {/* Referred Instructors */}
-            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-              <div className="border-b border-gray-100 px-5 py-4">
-                <h2 className="text-sm font-semibold text-gray-900">紹介したインストラクター</h2>
+          {/* Commission Tab */}
+          {activeTab === "commission" && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-sm font-medium text-gray-500">直接コミッション</span>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">¥384,200</p>
+                  <p className="mt-1 text-xs text-gray-400">売上の10%</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-sm font-medium text-gray-500">紹介コミッション</span>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">¥89,600</p>
+                  <p className="mt-1 text-xs text-gray-400">紹介売上の5%</p>
+                </div>
+                <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <span className="text-sm font-medium text-gray-500">合計コミッション</span>
+                  <p className="mt-2 text-2xl font-bold text-gray-900">¥473,800</p>
+                  <p className="mt-1 text-xs text-gray-400">累計</p>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
-                      <th className="px-5 py-3">名前</th>
-                      <th className="px-5 py-3">登録日</th>
-                      <th className="px-5 py-3">売上</th>
-                      <th className="px-5 py-3">ステータス</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {REFERRED_INSTRUCTORS.map((inst) => (
-                      <tr key={inst.id} className="border-b border-gray-50 last:border-0">
-                        <td className="px-5 py-3 font-medium text-gray-900">{inst.name}</td>
-                        <td className="whitespace-nowrap px-5 py-3 text-gray-500">{inst.joined}</td>
-                        <td className="px-5 py-3 font-medium text-gray-900">{inst.sales}</td>
-                        <td className="px-5 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                              inst.status === "アクティブ"
-                                ? "bg-mv-green/10 text-mv-green"
-                                : "bg-gray-100 text-gray-500"
-                            }`}
-                          >
-                            {inst.status}
-                          </span>
-                        </td>
+              <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-5 py-4">
+                  <h2 className="text-sm font-semibold text-gray-900">コミッション履歴</h2>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-left text-xs font-medium text-gray-400 uppercase">
+                        <th className="px-5 py-3">日付</th>
+                        <th className="px-5 py-3">顧客</th>
+                        <th className="px-5 py-3">商品</th>
+                        <th className="px-5 py-3">売上</th>
+                        <th className="px-5 py-3">コミッション</th>
+                        <th className="px-5 py-3">種類</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {RECENT_COMMISSIONS.map((c) => (
+                        <tr key={c.id} className="border-b border-gray-50 last:border-0">
+                          <td className="whitespace-nowrap px-5 py-3 text-gray-500">{c.date}</td>
+                          <td className="px-5 py-3 font-medium text-gray-900">{c.customer}</td>
+                          <td className="px-5 py-3 text-gray-500">{c.product}</td>
+                          <td className="px-5 py-3 text-gray-500">{c.amount}</td>
+                          <td className="px-5 py-3 font-medium text-mv-green">{c.commission}</td>
+                          <td className="px-5 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                                c.type === "直接"
+                                  ? "bg-mv-green/10 text-mv-green"
+                                  : "bg-blue-50 text-blue-600"
+                              }`}
+                            >
+                              {c.type}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Withdrawal Tab */}
+          {activeTab === "withdrawal" && (
+            <div className="space-y-6">
+              <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">引き出し可能残高</span>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">¥124,800</p>
+                  </div>
+                  <p className="text-sm text-gray-400">次回振込予定: 4/25</p>
+                </div>
+              </div>
+
+              {withdrawalSubmitted && (
+                <div className="rounded-lg bg-mv-green/10 px-4 py-3 text-sm font-medium text-mv-green">
+                  出金申請を送信しました。審査後に振込されます。
+                </div>
+              )}
+
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">出金申請フォーム</h2>
+                <form onSubmit={handleWithdrawalSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="w-amount" className="mb-1.5 block text-sm font-medium text-gray-700">出金額 (円)</label>
+                    <input
+                      id="w-amount"
+                      type="number"
+                      min="1000"
+                      max="124800"
+                      value={withdrawalAmount}
+                      onChange={(e) => setWithdrawalAmount(e.target.value)}
+                      placeholder="例: 50000"
+                      required
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                    />
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="w-bank" className="mb-1.5 block text-sm font-medium text-gray-700">銀行名</label>
+                      <input
+                        id="w-bank"
+                        type="text"
+                        value={withdrawalBank}
+                        onChange={(e) => setWithdrawalBank(e.target.value)}
+                        placeholder="例: 三菱UFJ銀行"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="w-branch" className="mb-1.5 block text-sm font-medium text-gray-700">支店名</label>
+                      <input
+                        id="w-branch"
+                        type="text"
+                        value={withdrawalBranch}
+                        onChange={(e) => setWithdrawalBranch(e.target.value)}
+                        placeholder="例: 渋谷支店"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
+                      <label htmlFor="w-account" className="mb-1.5 block text-sm font-medium text-gray-700">口座番号</label>
+                      <input
+                        id="w-account"
+                        type="text"
+                        value={withdrawalAccount}
+                        onChange={(e) => setWithdrawalAccount(e.target.value)}
+                        placeholder="例: 1234567"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="w-name" className="mb-1.5 block text-sm font-medium text-gray-700">口座名義</label>
+                      <input
+                        id="w-name"
+                        type="text"
+                        value={withdrawalName}
+                        onChange={(e) => setWithdrawalName(e.target.value)}
+                        placeholder="例: デモ インストラクター"
+                        required
+                        className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 placeholder-gray-400 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-mv-green px-6 py-2.5 text-sm font-medium text-white transition hover:bg-mv-green-dark"
+                  >
+                    出金申請を送信
+                  </button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Settings Tab */}
+          {activeTab === "settings" && (
+            <div className="space-y-6">
+              {settingsSaved && (
+                <div className="rounded-lg bg-mv-green/10 px-4 py-3 text-sm font-medium text-mv-green">
+                  設定を保存しました。
+                </div>
+              )}
+              <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-lg font-semibold text-gray-900">プロフィール設定</h2>
+                <form onSubmit={handleSettingsSave} className="space-y-4">
+                  <div>
+                    <label htmlFor="s-name" className="mb-1.5 block text-sm font-medium text-gray-700">名前</label>
+                    <input
+                      id="s-name"
+                      type="text"
+                      value={settingsName}
+                      onChange={(e) => setSettingsName(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="s-email" className="mb-1.5 block text-sm font-medium text-gray-700">メールアドレス</label>
+                    <input
+                      id="s-email"
+                      type="email"
+                      value={settingsEmail}
+                      onChange={(e) => setSettingsEmail(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-gray-900 transition focus:border-mv-green focus:outline-none focus:ring-2 focus:ring-mv-green/30"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-mv-green px-6 py-2.5 text-sm font-medium text-white transition hover:bg-mv-green-dark"
+                  >
+                    保存
+                  </button>
+                </form>
+              </div>
+
+              <div className="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-2 text-lg font-semibold text-red-600">アカウント</h2>
+                <p className="mb-4 text-sm text-gray-500">ログアウトするとログインページに戻ります。</p>
+                <button
+                  onClick={handleLogout}
+                  className="rounded-lg bg-red-600 px-6 py-2.5 text-sm font-medium text-white transition hover:bg-red-700"
+                >
+                  ログアウト
+                </button>
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>
